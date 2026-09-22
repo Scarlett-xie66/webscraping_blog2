@@ -86,11 +86,11 @@ qmd_dir <- if (nzchar(qmd_input)) {
 
 files_dir <- file.path(qmd_dir, "files")
 raw_dir <- file.path(files_dir, "raw")
-processed_dir <- file.path(files_dir, "processed")
 figure_dir <- files_dir
+data_dir <- file.path(qmd_dir, "data")
 
 purrr::walk(
-  c(files_dir, raw_dir, processed_dir),
+  c(files_dir, raw_dir, data_dir),
   dir.create,
   recursive = TRUE,
   showWarnings = FALSE
@@ -347,16 +347,27 @@ if (
   )
 }
 
-# Save cleaned, analysis-ready data ------------------------------------
-write_csv(pmms, file.path(processed_dir, "pmms_clean.csv"))
-write_csv(policy_snapshot, file.path(processed_dir, "policy_snapshot.csv"))
+# Save complete cleaned data and the exact analysis subsets ------------
+# These CSV files are written to data/ at the repository root so that
+# every dataset used downstream can be inspected without rerunning R.
+fomc_statement <- tibble(
+  event_date = ymd("2026-09-16"),
+  source = "Federal Reserve FOMC statement",
+  statement_text = fomc_text
+)
+
+write_csv(fomc_statement, file.path(data_dir, "fomc_statement.csv"))
+write_csv(h15_long, file.path(data_dir, "h15_clean_full.csv"))
+write_csv(pmms, file.path(data_dir, "pmms_clean_full.csv"))
+write_csv(policy_snapshot, file.path(data_dir, "policy_snapshot.csv"))
+write_csv(analysis_rates, file.path(data_dir, "analysis_mortgage_rates.csv"))
 
 census_snapshot <- tibble(
   snapshot_date = ymd("2026-09-21"),
   reference_month = ymd("2026-07-01"),
   median_new_home_price = median_price
 )
-write_csv(census_snapshot, file.path(processed_dir, "census_price_snapshot.csv"))
+write_csv(census_snapshot, file.path(data_dir, "census_price_snapshot.csv"))
 ```
 
 The raw webpages contain dates embedded in headings, interest rates stored as character strings with percent signs, and the Census price embedded in prose. Cleaning therefore changes representation, not economic meaning: `6.95%` becomes `0.0695` for calculation, comma-separated dollar text becomes a number, and the dated columns in H.15 become a tidy date-series-rate table. The validation checks deliberately stop the render rather than silently produce a chart from incomplete observations.
@@ -811,15 +822,21 @@ The standalone repository uses the following structure:
 ``` text
 index.qmd
 README.md
+data/
+├── fomc_statement.csv            # cleaned FOMC statement text
+├── h15_clean_full.csv            # complete cleaned H.15 table
+├── pmms_clean_full.csv            # complete cleaned PMMS archive
+├── policy_snapshot.csv            # exact daily policy-rate observations
+├── analysis_mortgage_rates.csv    # exact PMMS observations compared
+└── census_price_snapshot.csv      # extracted July 2026 median price
 files/
 ├── mortgage-rate-trend.png       # 300-dpi Figure 1
 ├── payment-curves.png            # 300-dpi Figure 2
 ├── buying-power.png              # 300-dpi Figure 3
-├── raw/                          # dated HTML snapshots
-└── processed/                    # cleaned CSV files
+└── raw/                          # dated source HTML snapshots
 ```
 
-To reproduce the post, install the listed packages once, open the repository as a project, and render `index.qmd`. On the first run, the script creates `files/`, downloads missing public webpages, saves dated HTML under `files/raw/`, writes analysis-ready CSV files under `files/processed/`, and stores all generated figures in `files/`. After the dated snapshots exist, keep `refresh_data <- FALSE` so future renders reproduce the same source vintage. No reported result is manually copied into the prose.
+To reproduce the post, install the listed packages once, open the repository as a project, and render `index.qmd`. On the first run, the script creates `files/` and `data/`, downloads missing public webpages, saves dated HTML under `files/raw/`, writes the complete cleaned datasets and exact analysis subsets as CSV files under `data/`, and stores all generated figures in `files/`. After the dated snapshots exist, keep `refresh_data <- FALSE` so future renders reproduce the same source vintage. No reported result is manually copied into the prose.
 
 ## Sources
 
